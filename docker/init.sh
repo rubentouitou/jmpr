@@ -9,6 +9,17 @@ ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
 REDIS_HOST=${REDIS_HOST:-redis}
 REDIS_URL="redis://${REDIS_HOST}:6379"
 PORT_TO_BIND=${PORT:-8000}
+YARN_CACHE_DIR=${YARN_CACHE_DIR:-/workspace/.yarn-cache}
+YARN_NETWORK_TIMEOUT=${YARN_NETWORK_TIMEOUT:-600000}
+
+mkdir -p "${YARN_CACHE_DIR}/npm"
+export YARN_CACHE_FOLDER="${YARN_CACHE_DIR}"
+export npm_config_cache="${YARN_CACHE_DIR}/npm"
+export YARN_NETWORK_TIMEOUT
+export npm_config_fetch_timeout="${YARN_NETWORK_TIMEOUT}"
+export npm_config_fetch_retries=${npm_config_fetch_retries:-5}
+
+yarn config set network-timeout "${YARN_NETWORK_TIMEOUT}" >/dev/null 2>&1 || true
 
 PLACEHOLDER_PID=""
 
