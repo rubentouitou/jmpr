@@ -51,4 +51,4 @@ fi
 export PATH="${NVM_DIR}/versions/node/v${NODE_VERSION_DEVELOP}/bin/:${PATH}"
 
 echo "Starting bench for site ${SITE_NAME} on port ${PORT_TO_BIND}"
-exec bench --site "${SITE_NAME}" serve --port "${PORT_TO_BIND}" --noreload
+exec bench --site "${SITE_NAME}" serve --port "${PORT_TO_BIND}" --host 0.0.0.0 --noreload
