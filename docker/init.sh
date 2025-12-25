@@ -10,6 +10,25 @@ REDIS_HOST=${REDIS_HOST:-redis}
 REDIS_URL="redis://${REDIS_HOST}:6379"
 PORT_TO_BIND=${PORT:-8000}
 
+PLACEHOLDER_PID=""
+
+start_placeholder_server() {
+    python3 -m http.server "${PORT_TO_BIND}" >/tmp/frappe_startup.log 2>&1 &
+    PLACEHOLDER_PID=$!
+    echo "Started placeholder server on port ${PORT_TO_BIND} (pid ${PLACEHOLDER_PID})"
+}
+
+stop_placeholder_server() {
+    if [ -n "${PLACEHOLDER_PID}" ] && kill -0 "${PLACEHOLDER_PID}" 2>/dev/null; then
+        kill "${PLACEHOLDER_PID}" 2>/dev/null || true
+        wait "${PLACEHOLDER_PID}" 2>/dev/null || true
+        echo "Stopped placeholder server"
+    fi
+}
+
+start_placeholder_server
+trap stop_placeholder_server EXIT
+
 if [ -d "/home/frappe/frappe-bench/apps/frappe" ]; then
     echo "Bench already exists, skipping init"
     cd frappe-bench
@@ -49,6 +68,12 @@ else
 fi
 
 export PATH="${NVM_DIR}/versions/node/v${NODE_VERSION_DEVELOP}/bin/:${PATH}"
+
+echo "Building assets before starting bench"
+bench build --production
+
+stop_placeholder_server
+trap - EXIT
 
 echo "Starting bench for site ${SITE_NAME} on port ${PORT_TO_BIND}"
 exec bench --site "${SITE_NAME}" serve --port "${PORT_TO_BIND}" --host 0.0.0.0 --noreload
