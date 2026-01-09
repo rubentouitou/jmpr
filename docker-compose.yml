@@ -1,10 +1,55 @@
+version: "3.9"
+
 services:
+  # -------------------------
+  # Reverse proxy + HTTPS
+  # -------------------------
+  traefik:
+    image: traefik:v3.0
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.email=you@yourdomain.com
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-data:/letsencrypt
+    restart: unless-stopped
+
+  # -------------------------
+  # Database (shared server, isolated DBs)
+  # -------------------------
+  mariadb:
+    image: mariadb:10.6
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ======================================================
+  # TENANT: acme (each service block below = one tenant)
+  # ======================================================
 
   tenant-acme:
     image: ghcr.io/frappe/erpnext:v15
     user: frappe
+    depends_on:
+      mariadb:
+        condition: service_healthy
     environment:
-      <<: *tenant-env
       SITE: acme.yourdomain.com
       DB_NAME: acme_hrms
       DB_USER: acme
@@ -12,50 +57,77 @@ services:
       REDIS_QUEUE: redis-acme-queue:6379
       REDIS_CACHE: redis-acme-cache:6379
       REDIS_SOCKETIO: redis-acme-socketio:6379
-    volumes: *tenant-volumes
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+    volumes:
+      - frappe-sites:/home/frappe/frappe-bench/sites
+      - frappe-logs:/home/frappe/frappe-bench/logs
+      - .:/workspace/repo:ro
     command: >
       bash -c "
       /workspace/repo/deploy/ensure_site.sh &&
-      gunicorn -b 0.0.0.0:8000 frappe.app:application
+      gunicorn -b 0.0.0.0:8000 -w 4 -t 120 frappe.app:application
       "
     labels:
       - traefik.enable=true
       - traefik.http.routers.acme.rule=Host(`acme.yourdomain.com`)
       - traefik.http.routers.acme.entrypoints=websecure
       - traefik.http.routers.acme.tls.certresolver=letsencrypt
+    restart: unless-stopped
 
   worker-acme:
     image: ghcr.io/frappe/erpnext:v15
     user: frappe
+    depends_on:
+      - tenant-acme
     environment:
       SITE: acme.yourdomain.com
       REDIS_QUEUE: redis-acme-queue:6379
-    command: bench --site acme.yourdomain.com worker --queue default,short,long
+    command: >
+      bench --site acme.yourdomain.com worker --queue default,short,long
+    restart: unless-stopped
 
   scheduler-acme:
     image: ghcr.io/frappe/erpnext:v15
     user: frappe
+    depends_on:
+      - tenant-acme
     environment:
       SITE: acme.yourdomain.com
-    command: bench --site acme.yourdomain.com schedule
+    command: >
+      bench --site acme.yourdomain.com schedule
+    restart: unless-stopped
 
   socketio-acme:
     image: ghcr.io/frappe/erpnext:v15
     user: frappe
+    depends_on:
+      - tenant-acme
     environment:
       SITE: acme.yourdomain.com
       REDIS_SOCKETIO: redis-acme-socketio:6379
-    command: node /home/frappe/frappe-bench/apps/frappe/socketio.js
+    command: >
+      node /home/frappe/frappe-bench/apps/frappe/socketio.js
     labels:
       - traefik.enable=true
       - traefik.http.routers.acme-socket.rule=Host(`acme.yourdomain.com`) && PathPrefix(`/socket.io`)
       - traefik.http.services.acme-socket.loadbalancer.server.port=9000
+    restart: unless-stopped
 
   redis-acme-queue:
     image: redis:7-alpine
+    restart: unless-stopped
 
   redis-acme-cache:
     image: redis:7-alpine
+    restart: unless-stopped
 
   redis-acme-socketio:
     image: redis:7-alpine
+    restart: unless-stopped
+
+volumes:
+  frappe-sites:
+  frappe-logs:
+  mariadb-data:
+  traefik-data:
