@@ -1,39 +1,18 @@
-version: "3.9"
-
 services:
-  traefik:
-    image: traefik:v3.0
-    command:
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
-      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
-      - --certificatesresolvers.letsencrypt.acme.email=you@yourdomain.com
-      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - traefik-data:/letsencrypt
 
-  backend:
-    image: ghcr.io/frappe/erpnext:${ERPNEXT_VERSION}
-    restart: unless-stopped
+  tenant-acme:
+    image: ghcr.io/frappe/erpnext:v15
     user: frappe
-    depends_on:
-      mariadb:
-        condition: service_healthy
     environment:
-      FRAPPE_SITE: ${FRAPPE_SITE}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
-    volumes:
-      - frappe-sites:/home/frappe/frappe-bench/sites
-      - frappe-logs:/home/frappe/frappe-bench/logs
-      - .:/workspace/repo:ro
+      <<: *tenant-env
+      SITE: acme.yourdomain.com
+      DB_NAME: acme_hrms
+      DB_USER: acme
+      DB_PASSWORD: strongpassword
+      REDIS_QUEUE: redis-acme-queue:6379
+      REDIS_CACHE: redis-acme-cache:6379
+      REDIS_SOCKETIO: redis-acme-socketio:6379
+    volumes: *tenant-volumes
     command: >
       bash -c "
       /workspace/repo/deploy/ensure_site.sh &&
@@ -41,31 +20,42 @@ services:
       "
     labels:
       - traefik.enable=true
-      - traefik.http.routers.frappe.rule=Host(`${FRAPPE_SITE}`)
-      - traefik.http.routers.frappe.entrypoints=websecure
-      - traefik.http.routers.frappe.tls.certresolver=letsencrypt
+      - traefik.http.routers.acme.rule=Host(`acme.yourdomain.com`)
+      - traefik.http.routers.acme.entrypoints=websecure
+      - traefik.http.routers.acme.tls.certresolver=letsencrypt
 
-  socketio:
-    image: ghcr.io/frappe/erpnext:${ERPNEXT_VERSION}
+  worker-acme:
+    image: ghcr.io/frappe/erpnext:v15
     user: frappe
+    environment:
+      SITE: acme.yourdomain.com
+      REDIS_QUEUE: redis-acme-queue:6379
+    command: bench --site acme.yourdomain.com worker --queue default,short,long
+
+  scheduler-acme:
+    image: ghcr.io/frappe/erpnext:v15
+    user: frappe
+    environment:
+      SITE: acme.yourdomain.com
+    command: bench --site acme.yourdomain.com schedule
+
+  socketio-acme:
+    image: ghcr.io/frappe/erpnext:v15
+    user: frappe
+    environment:
+      SITE: acme.yourdomain.com
+      REDIS_SOCKETIO: redis-acme-socketio:6379
     command: node /home/frappe/frappe-bench/apps/frappe/socketio.js
     labels:
       - traefik.enable=true
-      - traefik.http.routers.socketio.rule=Host(`${FRAPPE_SITE}`) && PathPrefix(`/socket.io`)
-      - traefik.http.services.socketio.loadbalancer.server.port=9000
+      - traefik.http.routers.acme-socket.rule=Host(`acme.yourdomain.com`) && PathPrefix(`/socket.io`)
+      - traefik.http.services.acme-socket.loadbalancer.server.port=9000
 
-  mariadb:
-    image: mariadb:10.6
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
-    volumes:
-      - mariadb-data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+  redis-acme-queue:
+    image: redis:7-alpine
 
-volumes:
-  frappe-sites:
-  frappe-logs:
-  mariadb-data:
-  traefik-data:
+  redis-acme-cache:
+    image: redis:7-alpine
+
+  redis-acme-socketio:
+    image: redis:7-alpine
