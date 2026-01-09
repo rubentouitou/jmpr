@@ -58,6 +58,26 @@ Initially, it was a set of modules within ERPNext but version 14 onwards, as the
 
 ## Production Setup
 
+### Dokploy (GitHub provider + Docker Compose)
+
+This repository now ships with a production-ready `docker-compose.yml` in the project root that Dokploy can consume directly when deploying via the GitHub provider. At a minimum set the following environment variables on the Dokploy service before deploying:
+
+- `MARIADB_ROOT_PASSWORD` (required)
+- `ADMIN_PASSWORD` (optional, defaults to `admin`)
+- `FRONTEND_PORT` (optional, defaults to `80`)
+
+Optional overrides exist for `FRAPPE_SITE`, `CUSTOM_APP_NAME`, `CUSTOM_APP_BRANCH`, `CUSTOM_APP_REPO`, `WAIT_FOR_DB_TIMEOUT`, and `BUILD_ASSETS_ON_START`. Dokploy checks out the repository as `/workspace/repo` inside the containers so the compose file uses that path for bootstrapping.
+
+Deployment flow:
+
+1. Connect your private GitHub repo to Dokploy and select the branch containing this file.
+2. Dokploy detects `docker-compose.yml` at the repo root; enable Auto Deploy if desired.
+3. On first boot the `backend` container runs `deploy/ensure_site.sh`, which waits for MariaDB/Redis, creates the default site, installs ERPNext + this HRMS app, builds production assets, and then launches Gunicorn.
+4. Companion services (`scheduler`, workers, Socket.IO, MariaDB, Redis, Nginx) start automatically; logs are available in Dokploy to monitor initial site creation.
+5. Once the stack is healthy, Dokploy’s Traefik proxy exposes the `frontend` service. Default Desk login is `Administrator / admin` (change immediately).
+
+If you maintain a forked app name (see `hrms/hooks.py` for `app_name`) update `CUSTOM_APP_NAME` accordingly so the bootstrap script installs the correct module. For larger installations we recommend later switching to a custom image built with `apps.json`, but this compose setup is sufficient to get Dokploy-based deployments running quickly.
+
 ### Managed Hosting
 
 You can try [Frappe Cloud](https://frappecloud.com), a simple, user-friendly and sophisticated [open-source](https://github.com/frappe/press) platform to host Frappe applications with peace of mind.
