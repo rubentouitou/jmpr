@@ -4245,7 +4245,7 @@ msgid "Fractional Cost"
 msgstr ""
 
 #: frontend/src/components/BaseLayout.vue:9
-msgid "Frappe HR"
+msgid "Payroll Jamaica"
 msgstr ""
 
 #. Label of the from_amount (Currency) field in DocType 'Taxable Salary Slab'
@@ -5041,7 +5041,7 @@ msgstr "Namesti"
 
 #: frontend/src/components/InstallPrompt.vue:5
 #: frontend/src/components/InstallPrompt.vue:28
-msgid "Install Frappe HR"
+msgid "Install Payroll Jamaica"
 msgstr ""
 
 #: hrms/hr/doctype/leave_application/leave_application.py:435
@@ -6185,7 +6185,7 @@ msgid "Login Failed"
 msgstr ""
 
 #: frontend/src/views/Login.vue:8
-msgid "Login to Frappe HR"
+msgid "Login to Payroll Jamaica"
 msgstr ""
 
 #: frontend/src/components/CheckInPanel.vue:132

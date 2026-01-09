@@ -4246,8 +4246,8 @@ msgid "Fractional Cost"
 msgstr "Делимични трошак"
 
 #: frontend/src/components/BaseLayout.vue:9
-msgid "Frappe HR"
-msgstr "Frappe HR"
+msgid "Payroll Jamaica"
+msgstr "Payroll Jamaica"
 
 #. Label of the from_amount (Currency) field in DocType 'Taxable Salary Slab'
 #: hrms/payroll/doctype/taxable_salary_slab/taxable_salary_slab.json
@@ -5042,8 +5042,8 @@ msgstr "Инсталирај"
 
 #: frontend/src/components/InstallPrompt.vue:5
 #: frontend/src/components/InstallPrompt.vue:28
-msgid "Install Frappe HR"
-msgstr "Инсталирај Frappe HR"
+msgid "Install Payroll Jamaica"
+msgstr "Инсталирај Payroll Jamaica"
 
 #: hrms/hr/doctype/leave_application/leave_application.py:435
 msgid "Insufficient Balance"
@@ -6186,8 +6186,8 @@ msgid "Login Failed"
 msgstr "Неуспешна пријава"
 
 #: frontend/src/views/Login.vue:8
-msgid "Login to Frappe HR"
-msgstr "Пријављивање на Frappe HR"
+msgid "Login to Payroll Jamaica"
+msgstr "Пријављивање на Payroll Jamaica"
 
 #: frontend/src/components/CheckInPanel.vue:132
 msgid "Longitude: {0}°"

@@ -1,11 +1,11 @@
-# Translations template for Frappe HR.
+# Translations template for Payroll Jamaica.
 # Copyright (C) 2024 Frappe Technologies Pvt. Ltd.
-# This file is distributed under the same license as the Frappe HR project.
+# This file is distributed under the same license as the Payroll Jamaica project.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2024.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Frappe HR VERSION\n"
+"Project-Id-Version: Payroll Jamaica VERSION\n"
 "Report-Msgid-Bugs-To: contact@frappe.io\n"
 "POT-Creation-Date: 2024-01-11 19:17+0553\n"
 "PO-Revision-Date: 2024-01-11 19:17+0553\n"

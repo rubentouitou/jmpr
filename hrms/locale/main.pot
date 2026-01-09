@@ -1,11 +1,11 @@
-# Translations template for Frappe HR.
+# Translations template for Payroll Jamaica.
 # Copyright (C) 2025 Frappe Technologies Pvt. Ltd.
-# This file is distributed under the same license as the Frappe HR project.
+# This file is distributed under the same license as the Payroll Jamaica project.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Frappe HR VERSION\n"
+"Project-Id-Version: Payroll Jamaica VERSION\n"
 "Report-Msgid-Bugs-To: contact@frappe.io\n"
 "POT-Creation-Date: 2025-12-21 09:37+0000\n"
 "PO-Revision-Date: 2025-12-21 09:37+0000\n"
@@ -4225,7 +4225,7 @@ msgid "Fractional Cost"
 msgstr ""
 
 #: frontend/src/components/BaseLayout.vue:9
-msgid "Frappe HR"
+msgid "Payroll Jamaica"
 msgstr ""
 
 #. Label of the from_amount (Currency) field in DocType 'Taxable Salary Slab'
@@ -5021,7 +5021,7 @@ msgstr ""
 
 #: frontend/src/components/InstallPrompt.vue:5
 #: frontend/src/components/InstallPrompt.vue:28
-msgid "Install Frappe HR"
+msgid "Install Payroll Jamaica"
 msgstr ""
 
 #: hrms/hr/doctype/leave_application/leave_application.py:435
@@ -6165,7 +6165,7 @@ msgid "Login Failed"
 msgstr ""
 
 #: frontend/src/views/Login.vue:8
-msgid "Login to Frappe HR"
+msgid "Login to Payroll Jamaica"
 msgstr ""
 
 #: frontend/src/components/CheckInPanel.vue:132

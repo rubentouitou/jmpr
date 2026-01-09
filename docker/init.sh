@@ -31,7 +31,7 @@ start_placeholder_server() {
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Frappe HR is starting…</title>
+  <title>Payroll Jamaica is starting…</title>
   <style>
     body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:#0f172a; color:#f8fafc; display:flex; align-items:center; justify-content:center; height:100vh; margin:0; }
     .card { max-width:520px; background:#1e293b; padding:32px 40px; border-radius:18px; box-shadow:0 25px 45px rgba(15,23,42,0.45); }
@@ -42,7 +42,7 @@ start_placeholder_server() {
 </head>
 <body>
   <div class="card">
-    <h1>Frappe HR is warming up ☕️</h1>
+    <h1>Payroll Jamaica is warming up ☕️</h1>
     <p>Your Render instance is still installing dependencies and building assets. This page will refresh automatically when the app is ready. The first boot can take several minutes because we compile the full Frappe bench.</p>
     <div class="status">Boot sequence in progress…</div>
   </div>
