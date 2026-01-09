@@ -138,7 +138,6 @@ services:
 
   mariadb:
     image: mariadb:10.6
-    container_name: frappe-mariadb
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?Set MARIADB_ROOT_PASSWORD}
