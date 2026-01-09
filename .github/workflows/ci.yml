@@ -69,7 +69,7 @@ jobs:
           check-latest: true
 
       - name: Add to Hosts
-        run: echo "127.0.0.1 test_site" | sudo tee -a /etc/hosts
+        run: echo "mariadb test_site" | sudo tee -a /etc/hosts
 
       - name: Cache pip
         uses: actions/cache@v4

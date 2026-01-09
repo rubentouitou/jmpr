@@ -96,7 +96,7 @@ function getProxyOptions() {
 	}
 	return {
 		"^/(app|login|api|assets|files|private)": {
-			target: `http://127.0.0.1:${webserver_port}`,
+			target: `http://mariadb:${webserver_port}`,
 			ws: true,
 			router: function (req) {
 				const site_name = req.headers.host.split(":")[0]
