@@ -111,6 +111,18 @@ maybe_build_assets() {
   bench build --production
 }
 
+ensure_site_db_config() {
+  cd "${BENCH_DIR}"
+
+  if [[ ! -d "sites/${SITE_NAME}" ]]; then
+    return
+  fi
+
+  echo "[ensure_site] Updating site database host configuration"
+  bench --site "${SITE_NAME}" set-config db_host "${DB_HOST}"
+  bench --site "${SITE_NAME}" set-config db_port "${DB_PORT}"
+}
+
 wait_for_port "${DB_HOST}" "${DB_PORT}" "${WAIT_FOR_DB_TIMEOUT}"
 
 if [[ -f "${MARKER_FILE}" ]]; then
@@ -127,6 +139,7 @@ else
   fi
 fi
 
+ensure_site_db_config
 sync_custom_app
 maybe_build_assets
 
