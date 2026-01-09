@@ -1,9 +1,5 @@
 version: "3.8"
 
-networks:
-  default:
-    name: traefik
-
 x-frappe-service: &frappe-service
   image: ${FRAPPE_IMAGE:-ghcr.io/frappe/erpnext:${ERPNEXT_VERSION:-version-15}}
   pull_policy: always
@@ -28,9 +24,15 @@ x-frappe-service: &frappe-service
     REDIS_SOCKETIO: redis-socketio:6379
     SOCKETIO_PORT: 9000
     ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
-    MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?required}
-    MARIADB_USER: frappe
-    MARIADB_PASSWORD: ${MARIADB_PASSWORD:-frappe}
+    MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?Set MARIADB_ROOT_PASSWORD}
+    CUSTOM_APP_NAME: ${CUSTOM_APP_NAME:-hrms}
+    CUSTOM_APP_BRANCH: ${CUSTOM_APP_BRANCH:-main}
+    CUSTOM_APP_REPO: /workspace/repo
+    INSTALL_ERPNEXT: ${INSTALL_ERPNEXT:-1}
+    BUILD_ASSETS_ON_START: ${BUILD_ASSETS_ON_START:-1}
+    WAIT_FOR_DB_TIMEOUT: ${WAIT_FOR_DB_TIMEOUT:-300}
+    SITE_HOST_NAME: ${SITE_HOST_NAME:-}
+    SITE_ADDITIONAL_HOST: ${SITE_ADDITIONAL_HOST:-}
   working_dir: /home/frappe/frappe-bench
   volumes:
     - frappe-sites:/home/frappe/frappe-bench/sites
@@ -44,25 +46,110 @@ services:
   backend:
     <<: *frappe-service
     container_name: frappe-backend
-    command: ["/bin/bash", "/workspace/repo/deploy/ensure_site.sh", "gunicorn", "-b", "0.0.0.0:8000", "-w", "4", "-t", "120", "frappe.app:application"]
+    command:
+      - /bin/bash
+      - /workspace/repo/deploy/ensure_site.sh
+      - gunicorn
+      - -b
+      - 0.0.0.0:8000
+      - -w
+      - "4"
+      - -t
+      - "120"
+      - frappe.app:application
     expose:
       - "8000"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.services.backend.loadbalancer.server.port=8000"
 
-  # ... (scheduler, workers, socketio same as before, just add labels if needed)
+  scheduler:
+    <<: *frappe-service
+    container_name: frappe-scheduler
+    depends_on:
+      backend:
+        condition: service_started
+    command:
+      - /bin/bash
+      - /workspace/repo/deploy/ensure_site.sh
+      - bench
+      - --site
+      - ${FRAPPE_SITE:-site1.local}
+      - schedule
+
+  worker-default:
+    <<: *frappe-service
+    container_name: frappe-worker-default
+    depends_on:
+      backend:
+        condition: service_started
+    command:
+      - /bin/bash
+      - /workspace/repo/deploy/ensure_site.sh
+      - bench
+      - --site
+      - ${FRAPPE_SITE:-site1.local}
+      - worker
+      - --queue
+      - default
+
+  worker-short:
+    <<: *frappe-service
+    container_name: frappe-worker-short
+    depends_on:
+      backend:
+        condition: service_started
+    command:
+      - /bin/bash
+      - /workspace/repo/deploy/ensure_site.sh
+      - bench
+      - --site
+      - ${FRAPPE_SITE:-site1.local}
+      - worker
+      - --queue
+      - short
+
+  worker-long:
+    <<: *frappe-service
+    container_name: frappe-worker-long
+    depends_on:
+      backend:
+        condition: service_started
+    command:
+      - /bin/bash
+      - /workspace/repo/deploy/ensure_site.sh
+      - bench
+      - --site
+      - ${FRAPPE_SITE:-site1.local}
+      - worker
+      - --queue
+      - long
+
+  socketio:
+    <<: *frappe-service
+    container_name: frappe-socketio
+    depends_on:
+      backend:
+        condition: service_started
+    command:
+      - /bin/bash
+      - /workspace/repo/deploy/ensure_site.sh
+      - node
+      - /home/frappe/frappe-bench/apps/frappe/socketio.js
+    expose:
+      - "9000"
 
   mariadb:
     image: mariadb:10.6
     container_name: frappe-mariadb
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?Set MARIADB_ROOT_PASSWORD}
       MYSQL_DATABASE: ${SITE_DB_NAME:-site1_local}
-      MYSQL_USER: frappe
+      MYSQL_USER: ${MARIADB_USER:-frappe}
       MYSQL_PASSWORD: ${MARIADB_PASSWORD:-frappe}
-    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci]
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --skip-innodb-read-only-compressed
     volumes:
       - mariadb-data:/var/lib/mysql
     healthcheck:
@@ -70,6 +157,27 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  redis-queue:
+    image: redis:7-alpine
+    container_name: frappe-redis-queue
+    restart: unless-stopped
+    volumes:
+      - redis-queue-data:/data
+
+  redis-cache:
+    image: redis:7-alpine
+    container_name: frappe-redis-cache
+    restart: unless-stopped
+    volumes:
+      - redis-cache-data:/data
+
+  redis-socketio:
+    image: redis:7-alpine
+    container_name: frappe-redis-socketio
+    restart: unless-stopped
+    volumes:
+      - redis-socketio-data:/data
 
   frontend:
     image: nginx:alpine
@@ -80,16 +188,10 @@ services:
         condition: service_started
       socketio:
         condition: service_started
+    # ports:
+    #   - "${FRONTEND_PORT:-80}:80"
     volumes:
       - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`${SITE_HOST_NAME}`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls=true"
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
-
-  # redis services unchanged
 
 volumes:
   frappe-sites:
