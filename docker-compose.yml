@@ -31,6 +31,8 @@ x-frappe-service: &frappe-service
     INSTALL_ERPNEXT: ${INSTALL_ERPNEXT:-1}
     BUILD_ASSETS_ON_START: ${BUILD_ASSETS_ON_START:-1}
     WAIT_FOR_DB_TIMEOUT: ${WAIT_FOR_DB_TIMEOUT:-300}
+    SITE_HOST_NAME: ${SITE_HOST_NAME:-}
+    SITE_ADDITIONAL_HOST: ${SITE_ADDITIONAL_HOST:-}
   working_dir: /home/frappe/frappe-bench
   volumes:
     - frappe-sites:/home/frappe/frappe-bench/sites

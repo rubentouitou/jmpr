@@ -21,6 +21,8 @@ CUSTOM_APP_REPO=${CUSTOM_APP_REPO:-/workspace/repo}
 INSTALL_ERPNEXT=${INSTALL_ERPNEXT:-1}
 BUILD_ASSETS_ON_START=${BUILD_ASSETS_ON_START:-1}
 WAIT_FOR_DB_TIMEOUT=${WAIT_FOR_DB_TIMEOUT:-300}
+SITE_HOST_NAME=${SITE_HOST_NAME:-}
+SITE_ADDITIONAL_HOST=${SITE_ADDITIONAL_HOST:-}
 LOCK_DIR="${BENCH_DIR}/sites/.bootstrap-lock"
 MARKER_FILE="${BENCH_DIR}/sites/.bootstrap-complete"
 
@@ -127,5 +129,15 @@ fi
 
 sync_custom_app
 maybe_build_assets
+
+if [[ -n "${SITE_HOST_NAME}" ]]; then
+
+  bench --site "${SITE_NAME}" set-config host_name "${SITE_HOST_NAME}"
+fi
+
+if [[ -n "${SITE_ADDITIONAL_HOST}" ]]; then
+
+  bench --site "${SITE_NAME}" set-config host_name2 "${SITE_ADDITIONAL_HOST}"
+fi
 
 exec "${COMMAND[@]}"
