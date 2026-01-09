@@ -1,191 +1,71 @@
-version: "3.8"
-
-x-frappe-service: &frappe-service
-  image: ${FRAPPE_IMAGE:-ghcr.io/frappe/erpnext:${ERPNEXT_VERSION:-version-15}}
-  pull_policy: always
-  restart: unless-stopped
-  user: "frappe"
-  depends_on:
-    mariadb:
-      condition: service_healthy
-    redis-queue:
-      condition: service_started
-    redis-cache:
-      condition: service_started
-    redis-socketio:
-      condition: service_started
-  environment:
-    FRAPPE_SITE: ${FRAPPE_SITE:-site1.local}
-    SITE_DB_NAME: ${SITE_DB_NAME:-site1_local}
-    DB_HOST: mariadb
-    DB_PORT: 3306
-    REDIS_QUEUE: redis-queue:6379
-    REDIS_CACHE: redis-cache:6379
-    REDIS_SOCKETIO: redis-socketio:6379
-    SOCKETIO_PORT: 9000
-    ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
-    MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?Set MARIADB_ROOT_PASSWORD}
-    CUSTOM_APP_NAME: ${CUSTOM_APP_NAME:-hrms}
-    CUSTOM_APP_BRANCH: ${CUSTOM_APP_BRANCH:-main}
-    CUSTOM_APP_REPO: /workspace/repo
-    INSTALL_ERPNEXT: ${INSTALL_ERPNEXT:-1}
-    BUILD_ASSETS_ON_START: ${BUILD_ASSETS_ON_START:-1}
-    WAIT_FOR_DB_TIMEOUT: ${WAIT_FOR_DB_TIMEOUT:-300}
-    SITE_HOST_NAME: ${SITE_HOST_NAME:-}
-    SITE_ADDITIONAL_HOST: ${SITE_ADDITIONAL_HOST:-}
-  working_dir: /home/frappe/frappe-bench
-  volumes:
-    - frappe-sites:/home/frappe/frappe-bench/sites
-    - frappe-logs:/home/frappe/frappe-bench/logs
-    - type: bind
-      source: .
-      target: /workspace/repo
-      read_only: true
+version: "3.9"
 
 services:
+  traefik:
+    image: traefik:v3.0
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge=true
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.letsencrypt.acme.email=you@yourdomain.com
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - traefik-data:/letsencrypt
+
   backend:
-    <<: *frappe-service
-    command:
-      - /bin/bash
-      - /workspace/repo/deploy/ensure_site.sh
-      - gunicorn
-      - -b
-      - 0.0.0.0:8000
-      - -w
-      - "4"
-      - -t
-      - "120"
-      - frappe.app:application
-    expose:
-      - "8000"
-
-  scheduler:
-    <<: *frappe-service
+    image: ghcr.io/frappe/erpnext:${ERPNEXT_VERSION}
+    restart: unless-stopped
+    user: frappe
     depends_on:
-      backend:
-        condition: service_started
-    command:
-      - /bin/bash
-      - /workspace/repo/deploy/ensure_site.sh
-      - bench
-      - --site
-      - ${FRAPPE_SITE:-site1.local}
-      - schedule
-
-  worker-default:
-    <<: *frappe-service
-    depends_on:
-      backend:
-        condition: service_started
-    command:
-      - /bin/bash
-      - /workspace/repo/deploy/ensure_site.sh
-      - bench
-      - --site
-      - ${FRAPPE_SITE:-site1.local}
-      - worker
-      - --queue
-      - default
-
-  worker-short:
-    <<: *frappe-service
-    depends_on:
-      backend:
-        condition: service_started
-    command:
-      - /bin/bash
-      - /workspace/repo/deploy/ensure_site.sh
-      - bench
-      - --site
-      - ${FRAPPE_SITE:-site1.local}
-      - worker
-      - --queue
-      - short
-
-  worker-long:
-    <<: *frappe-service
-    depends_on:
-      backend:
-        condition: service_started
-    command:
-      - /bin/bash
-      - /workspace/repo/deploy/ensure_site.sh
-      - bench
-      - --site
-      - ${FRAPPE_SITE:-site1.local}
-      - worker
-      - --queue
-      - long
+      mariadb:
+        condition: service_healthy
+    environment:
+      FRAPPE_SITE: ${FRAPPE_SITE}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+    volumes:
+      - frappe-sites:/home/frappe/frappe-bench/sites
+      - frappe-logs:/home/frappe/frappe-bench/logs
+      - .:/workspace/repo:ro
+    command: >
+      bash -c "
+      /workspace/repo/deploy/ensure_site.sh &&
+      gunicorn -b 0.0.0.0:8000 frappe.app:application
+      "
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.frappe.rule=Host(`${FRAPPE_SITE}`)
+      - traefik.http.routers.frappe.entrypoints=websecure
+      - traefik.http.routers.frappe.tls.certresolver=letsencrypt
 
   socketio:
-    <<: *frappe-service
-    depends_on:
-      backend:
-        condition: service_started
-    command:
-      - /bin/bash
-      - /workspace/repo/deploy/ensure_site.sh
-      - node
-      - /home/frappe/frappe-bench/apps/frappe/socketio.js
-    expose:
-      - "9000"
+    image: ghcr.io/frappe/erpnext:${ERPNEXT_VERSION}
+    user: frappe
+    command: node /home/frappe/frappe-bench/apps/frappe/socketio.js
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.socketio.rule=Host(`${FRAPPE_SITE}`) && PathPrefix(`/socket.io`)
+      - traefik.http.services.socketio.loadbalancer.server.port=9000
 
   mariadb:
     image: mariadb:10.6
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?Set MARIADB_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${SITE_DB_NAME:-site1_local}
-      MYSQL_USER: ${MARIADB_USER:-frappe}
-      MYSQL_PASSWORD: ${MARIADB_PASSWORD:-frappe}
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-      - --skip-character-set-client-handshake
-      - --skip-innodb-read-only-compressed
+      MYSQL_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
     volumes:
       - mariadb-data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  redis-queue:
-    image: redis:7-alpine
-    restart: unless-stopped
-    volumes:
-      - redis-queue-data:/data
-
-  redis-cache:
-    image: redis:7-alpine
-    restart: unless-stopped
-    volumes:
-      - redis-cache-data:/data
-
-  redis-socketio:
-    image: redis:7-alpine
-    restart: unless-stopped
-    volumes:
-      - redis-socketio-data:/data
-
-  frontend:
-    image: nginx:alpine
-    restart: unless-stopped
-    depends_on:
-      backend:
-        condition: service_started
-      socketio:
-        condition: service_started
-    # ports:
-    #   - "${FRONTEND_PORT:-80}:80"
-    volumes:
-      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
 
 volumes:
   frappe-sites:
   frappe-logs:
   mariadb-data:
-  redis-queue-data:
-  redis-cache-data:
-  redis-socketio-data:
+  traefik-data:
