@@ -45,7 +45,6 @@ x-frappe-service: &frappe-service
 services:
   backend:
     <<: *frappe-service
-    container_name: frappe-backend
     command:
       - /bin/bash
       - /workspace/repo/deploy/ensure_site.sh
@@ -62,7 +61,6 @@ services:
 
   scheduler:
     <<: *frappe-service
-    container_name: frappe-scheduler
     depends_on:
       backend:
         condition: service_started
@@ -76,7 +74,6 @@ services:
 
   worker-default:
     <<: *frappe-service
-    container_name: frappe-worker-default
     depends_on:
       backend:
         condition: service_started
@@ -92,7 +89,6 @@ services:
 
   worker-short:
     <<: *frappe-service
-    container_name: frappe-worker-short
     depends_on:
       backend:
         condition: service_started
@@ -108,7 +104,6 @@ services:
 
   worker-long:
     <<: *frappe-service
-    container_name: frappe-worker-long
     depends_on:
       backend:
         condition: service_started
@@ -124,7 +119,6 @@ services:
 
   socketio:
     <<: *frappe-service
-    container_name: frappe-socketio
     depends_on:
       backend:
         condition: service_started
@@ -159,28 +153,24 @@ services:
 
   redis-queue:
     image: redis:7-alpine
-    container_name: frappe-redis-queue
     restart: unless-stopped
     volumes:
       - redis-queue-data:/data
 
   redis-cache:
     image: redis:7-alpine
-    container_name: frappe-redis-cache
     restart: unless-stopped
     volumes:
       - redis-cache-data:/data
 
   redis-socketio:
     image: redis:7-alpine
-    container_name: frappe-redis-socketio
     restart: unless-stopped
     volumes:
       - redis-socketio-data:/data
 
   frontend:
     image: nginx:alpine
-    container_name: frappe-frontend
     restart: unless-stopped
     depends_on:
       backend:
